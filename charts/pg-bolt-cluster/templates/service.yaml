@@ -1,0 +1,18 @@
+{{- if eq .Values.operator.mode "standalone" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pg-bolt-cluster.fullname" . }}
+  labels:
+    {{- include "pg-bolt-cluster.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: postgresql
+      protocol: TCP
+      name: postgresql
+  selector:
+    app.kubernetes.io/name: {{ include "pg-bolt-cluster.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

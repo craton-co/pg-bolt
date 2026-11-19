@@ -1,0 +1,9 @@
+pg_bolt PostgreSQL cluster has been deployed!
+
+Mode: {{ .Values.operator.mode }}
+Image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+GPU enabled: {{ .Values.gpu.enabled }}
+
+Connect and enable the extension:
+  CREATE EXTENSION pg_bolt;
+  SELECT bolt.status();

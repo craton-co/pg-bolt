@@ -1,0 +1,71 @@
+{{- if eq .Values.operator.mode "standalone" }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "pg-bolt-cluster.fullname" . }}
+  labels:
+    {{- include "pg-bolt-cluster.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "pg-bolt-cluster.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pg-bolt-cluster.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        {{- include "pg-bolt-cluster.labels" . | nindent 8 }}
+    spec:
+      {{- if and .Values.gpu.enabled .Values.gpu.runtimeClassName }}
+      runtimeClassName: {{ .Values.gpu.runtimeClassName }}
+      {{- end }}
+      containers:
+        - name: postgresql
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pg-bolt-cluster.secretName" . }}
+                  key: {{ .Values.auth.secretKey }}
+          resources:
+            requests:
+              {{- toYaml .Values.resources.requests | nindent 14 }}
+            limits:
+              {{- toYaml .Values.resources.limits | nindent 14 }}
+              {{- if .Values.gpu.enabled }}
+              nvidia.com/gpu: {{ .Values.gpu.count }}
+              {{- end }}
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/{{ .Values.postgresql.version }}/main
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.storage.storageClassName }}
+        storageClassName: {{ .Values.storage.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}
+{{- end }}

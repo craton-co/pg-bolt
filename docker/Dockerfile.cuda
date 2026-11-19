@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Multi-version PostgreSQL + CUDA image for pg_bolt (pg15, pg16, pg17, pg18).
+#
+# Build from the pg_bolt repository root:
+#   docker build -f docker/Dockerfile.cuda --build-arg PG_MAJOR=17 -t ghcr.io/craton-co/pg_bolt:pg17-cuda .
+#
+# Run with NVIDIA Container Toolkit (`--gpus all`):
+#   docker run --rm -it --gpus all -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/craton-co/pg_bolt:pg17-cuda
+
+ARG PG_MAJOR=17
+ARG CUDA_IMAGE_TAG=12.6.3
+
+FROM nvidia/cuda:${CUDA_IMAGE_TAG}-devel-ubuntu24.04 AS builder
+
+ARG PG_MAJOR
+ENV PG_MAJOR=${PG_MAJOR}
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CUDA_HOME=/usr/local/cuda
+ENV CUDA_PATH=/usr/local/cuda
+ENV PATH=/root/.cargo/bin:/usr/lib/postgresql/${PG_MAJOR}/bin:${CUDA_HOME}/bin:${PATH}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    clang \
+    curl \
+    git \
+    gnupg \
+    libclang-dev \
+    libssl-dev \
+    lsb-release \
+    pkg-config \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-${PG_MAJOR} \
+    postgresql-server-dev-${PG_MAJOR} \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
+    | sh -s -- -y --default-toolchain 1.85.0 --profile minimal \
+    && cargo install cargo-pgrx --version 0.19.4 --locked \
+    && cargo pgrx init --pg${PG_MAJOR} /usr/lib/postgresql/${PG_MAJOR}/bin/pg_config
+
+WORKDIR /workspace/pg_bolt
+COPY . /workspace/pg_bolt
+
+# Use published craton-bolt from crates.io when sibling ../bolt is not present.
+RUN if [ ! -d /workspace/bolt ]; then \
+        sed -i 's|path = "../bolt", ||g' Cargo.toml; \
+    fi
+
+RUN cargo pgrx install \
+    --release \
+    --pg-config /usr/lib/postgresql/${PG_MAJOR}/bin/pg_config \
+    --no-default-features \
+    --features "pg${PG_MAJOR} cuda"
+
+FROM nvidia/cuda:${CUDA_IMAGE_TAG}-runtime-ubuntu24.04
+
+ARG PG_MAJOR
+ENV PG_MAJOR=${PG_MAJOR}
+ENV DEBIAN_FRONTEND=noninteractive
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+ENV CUDA_HOME=/usr/local/cuda
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64
+ENV PGDATA=/var/lib/postgresql/${PG_MAJOR}/main
+ENV PATH=/usr/lib/postgresql/${PG_MAJOR}/bin:${CUDA_HOME}/bin:${PATH}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-${PG_MAJOR} \
+    cuda-nvrtc-12-6 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/lib/postgresql/${PG_MAJOR}/lib/pg_bolt.so /usr/lib/postgresql/${PG_MAJOR}/lib/pg_bolt.so
+COPY --from=builder /usr/share/postgresql/${PG_MAJOR}/extension/pg_bolt* /usr/share/postgresql/${PG_MAJOR}/extension/
+
+RUN sed -i "s/^#*shared_preload_libraries.*/shared_preload_libraries = 'pg_bolt'/" /etc/postgresql/${PG_MAJOR}/main/postgresql.conf \
+    && echo "host all all 0.0.0.0/0 scram-sha-256" >> /etc/postgresql/${PG_MAJOR}/main/pg_hba.conf \
+    && sed -i "s/^#*listen_addresses.*/listen_addresses = '*'/" /etc/postgresql/${PG_MAJOR}/main/postgresql.conf
+
+COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+USER postgres
+EXPOSE 5432
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

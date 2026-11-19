@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Helm Charts
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release-charts:
+    name: Package & Publish Helm Chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pg_bolt
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Package chart
+        run: |
+          mkdir -p .cr-release-packages
+          helm lint charts/pg-bolt-cluster
+          helm package charts/pg-bolt-cluster -d .cr-release-packages
+
+      - name: Checkout craton-co/charts (gh-pages)
+        uses: actions/checkout@v4
+        with:
+          repository: craton-co/charts
+          ref: gh-pages
+          token: ${{ secrets.CRATON_ORG_TOKEN }}
+          path: charts-repo
+
+      - name: Update Helm index and CNAME
+        run: |
+          cp .cr-release-packages/*.tgz charts-repo/
+          echo "charts.craton.com.ar" > charts-repo/CNAME
+          helm repo index charts-repo --url https://charts.craton.com.ar --merge charts-repo/index.yaml
+          cd charts-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if ! git diff --cached --quiet; then
+            git commit -m "Release pg-bolt-cluster chart from ${{ github.ref_name }}"
+            git push origin gh-pages
+          fi
