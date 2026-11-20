@@ -1,0 +1,159 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: APT & RPM Packages
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-deb:
+    name: Build .deb (${{ matrix.distro }}, pg${{ matrix.pg }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: jammy
+            image: nvidia/cuda:12.6.3-devel-ubuntu22.04
+          - distro: noble
+            image: nvidia/cuda:12.6.3-devel-ubuntu24.04
+          - distro: bookworm
+            image: nvidia/cuda:12.6.3-devel-debian12
+        pg: [15, 16, 17, 18]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract version
+        id: ver
+        run: |
+          VER=$(grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2)
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+      - name: Build .deb inside ${{ matrix.image }}
+        run: |
+          mkdir -p dist-deb
+          docker run --rm \
+            -v "${PWD}:/src" -w /src \
+            "${{ matrix.image }}" \
+            bash packaging/build-deb.sh "${{ matrix.pg }}" "${{ matrix.distro }}" "${{ steps.ver.outputs.version }}" /src/dist-deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.distro }}-pg${{ matrix.pg }}
+          path: dist-deb/*.deb
+
+  build-rpm:
+    name: Build .rpm (el9, pg${{ matrix.pg }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: [15, 16, 17, 18]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract version
+        id: ver
+        run: |
+          VER=$(grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2)
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+      - name: Build .rpm inside Rocky Linux 9 + CUDA
+        run: |
+          mkdir -p dist-rpm
+          docker run --rm \
+            -v "${PWD}:/src" -w /src \
+            nvidia/cuda:12.6.3-devel-rockylinux9 \
+            bash packaging/build-rpm.sh "${{ matrix.pg }}" "${{ steps.ver.outputs.version }}" /src/dist-rpm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm-el9-pg${{ matrix.pg }}
+          path: dist-rpm/*.rpm
+
+  publish-repos:
+    name: Sign & Publish APT/RPM to craton-co/packages
+    needs: [build-deb, build-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Install repo tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends dpkg-dev apt-utils createrepo-c rpm gnupg
+
+      - name: Import GPG signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.PACKAGES_GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.PACKAGES_GPG_PASSPHRASE }}
+        run: |
+          echo "${GPG_PRIVATE_KEY}" | gpg --batch --import
+          KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/{print $5; exit}')
+          echo "KEY_ID=${KEY_ID}" >> "$GITHUB_ENV"
+
+      - name: Checkout craton-co/packages (gh-pages)
+        uses: actions/checkout@v4
+        with:
+          repository: craton-co/packages
+          ref: gh-pages
+          token: ${{ secrets.CRATON_ORG_TOKEN }}
+          path: packages-repo
+
+      - name: Populate and sign APT & RPM repositories
+        env:
+          GPG_PASSPHRASE: ${{ secrets.PACKAGES_GPG_PASSPHRASE }}
+        run: |
+          REPO="packages-repo"
+          echo "packages.craton.com.ar" > "${REPO}/CNAME"
+          gpg --armor --export "${KEY_ID}" > "${REPO}/gpg.key"
+
+          # APT pool & dists
+          mkdir -p "${REPO}/apt/pool/main"
+          find artifacts -name '*.deb' -exec cp {} "${REPO}/apt/pool/main/" \;
+
+          for DIST in jammy noble bookworm; do
+            BIN_DIR="${REPO}/apt/dists/${DIST}/main/binary-amd64"
+            mkdir -p "${BIN_DIR}"
+            (cd "${REPO}/apt" && dpkg-scanpackages --multiversion "pool/main" | grep -E "Filename: .*~${DIST}_" -B 1 -A 20 > "dists/${DIST}/main/binary-amd64/Packages" || dpkg-scanpackages --multiversion "pool/main" > "dists/${DIST}/main/binary-amd64/Packages")
+            gzip -kf "${BIN_DIR}/Packages"
+            apt-ftparchive \
+              -o APT::FTPArchive::Release::Origin="Craton" \
+              -o APT::FTPArchive::Release::Label="Craton" \
+              -o APT::FTPArchive::Release::Suite="${DIST}" \
+              -o APT::FTPArchive::Release::Codename="${DIST}" \
+              -o APT::FTPArchive::Release::Architectures="amd64" \
+              -o APT::FTPArchive::Release::Components="main" \
+              release "${REPO}/apt/dists/${DIST}" > "${REPO}/apt/dists/${DIST}/Release"
+            gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" \
+              -abs -o "${REPO}/apt/dists/${DIST}/Release.gpg" "${REPO}/apt/dists/${DIST}/Release"
+            gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" \
+              --clearsign -o "${REPO}/apt/dists/${DIST}/InRelease" "${REPO}/apt/dists/${DIST}/Release"
+          done
+
+          # RPM el9 repo
+          mkdir -p "${REPO}/rpm/el9/x86_64"
+          find artifacts -name '*.rpm' -exec cp {} "${REPO}/rpm/el9/x86_64/" \;
+          createrepo_c "${REPO}/rpm/el9/x86_64"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" \
+            --detach-sign --armor "${REPO}/rpm/el9/x86_64/repodata/repomd.xml"
+
+          cat > "${REPO}/rpm/craton.repo" <<EOF
+          [craton]
+          name=Craton pg_bolt Repository
+          baseurl=https://packages.craton.com.ar/rpm/el9/\$basearch
+          enabled=1
+          gpgcheck=1
+          repo_gpgcheck=1
+          gpgkey=https://packages.craton.com.ar/gpg.key
+          EOF
+
+      - name: Commit & push packages repo
+        run: |
+          cd packages-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish pg_bolt packages for ${{ github.ref_name }}"
+            git push origin gh-pages
+          fi

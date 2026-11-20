@@ -1,0 +1,35 @@
+pg_bolt
+Copyright 2026 Craton Software Company (https://craton.com.ar)
+
+This product includes software developed at
+Craton Software Company (https://craton.com.ar).
+
+The `pg_bolt` source code in this repository is licensed under the
+Apache License, Version 2.0 (see LICENSE).
+
+-------------------------------------------------------------------------------
+Third-Party Dependencies and Licensing Notice
+-------------------------------------------------------------------------------
+
+Compiled artifacts and combined distributions of `pg_bolt` link against the
+following upstream projects:
+
+* Craton Bolt (`craton-bolt` 0.12.0)
+  Copyright 2025-2026 Craton Software Company (https://craton.com.ar)
+  Licensed under the GNU Affero General Public License v3.0 only (AGPL-3.0-only).
+  Note: When building and distributing combined binaries (`pg_bolt.so` /
+  `pg_bolt.dll`) that statically or dynamically link `craton-bolt`, the terms of
+  AGPL-3.0-only apply to the combined work unless a separate commercial license
+  has been obtained from Craton Software Company.
+
+* `pgrx` (https://github.com/pgcentralfoundation/pgrx)
+  Licensed under the PostgreSQL License / MIT License.
+
+* PostgreSQL (https://www.postgresql.org)
+  Portions Copyright (c) 1996-2026, PostgreSQL Global Development Group
+  Portions Copyright (c) 1994, The Regents of the University of California
+  Licensed under the PostgreSQL License.
+
+* Apache Arrow (`arrow-array`, `arrow-buffer`, `arrow-cast`, `arrow-schema`, `arrow-select`)
+  Copyright 2016-2026 The Apache Software Foundation
+  Licensed under the Apache License, Version 2.0.
