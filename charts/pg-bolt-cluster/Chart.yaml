@@ -1,0 +1,19 @@
+apiVersion: v2
+name: pg-bolt-cluster
+description: PostgreSQL cluster with pg_bolt GPU-accelerated analytical SQL extension (Standalone or CloudNativePG)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/craton-co/pg-bolt
+sources:
+  - https://github.com/craton-co/pg-bolt
+keywords:
+  - postgresql
+  - gpu
+  - cuda
+  - pg_bolt
+  - cloudnativepg
+  - analytics
+maintainers:
+  - name: Craton Software Company
+    email: opensource@craton.com.ar

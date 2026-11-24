@@ -1,0 +1,30 @@
+# Rust build artifacts
+/target/
+/target-*/
+lcov.info
+
+# Compiled shared / static libraries & debug symbols
+*.dll
+*.so
+*.so.*
+*.dylib
+*.pdb
+*.lib
+*.exp
+*.o
+*.a
+*.bc
+
+# pgrx local artifacts
+.pgrx/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

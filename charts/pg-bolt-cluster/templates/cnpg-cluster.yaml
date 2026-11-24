@@ -1,0 +1,35 @@
+{{- if eq .Values.operator.mode "cnpg" }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "pg-bolt-cluster.fullname" . }}
+  labels:
+    {{- include "pg-bolt-cluster.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.operator.instances }}
+  imageName: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+  imagePullPolicy: {{ .Values.image.pullPolicy }}
+  postgresql:
+    shared_preload_libraries:
+      {{- toYaml .Values.postgresql.sharedPreloadLibraries | nindent 6 }}
+    parameters:
+      {{- toYaml .Values.postgresql.parameters | nindent 6 }}
+  storage:
+    size: {{ .Values.storage.size }}
+    {{- if .Values.storage.storageClassName }}
+    storageClass: {{ .Values.storage.storageClassName | quote }}
+    {{- end }}
+  resources:
+    requests:
+      {{- toYaml .Values.resources.requests | nindent 6 }}
+    limits:
+      {{- toYaml .Values.resources.limits | nindent 6 }}
+      {{- if .Values.gpu.enabled }}
+      nvidia.com/gpu: {{ .Values.gpu.count }}
+      {{- end }}
+  {{- if and .Values.gpu.enabled .Values.gpu.runtimeClassName }}
+  affinity:
+    nodeSelector:
+      {{- toYaml .Values.nodeSelector | nindent 6 }}
+  {{- end }}
+{{- end }}

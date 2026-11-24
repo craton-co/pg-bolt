@@ -1,0 +1,67 @@
+[package]
+name = "pg_bolt"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "PostgreSQL extension for GPU-accelerated analytical SQL via craton-bolt"
+license = "Apache-2.0"
+authors = ["Craton Software Company <opensource@craton.com.ar>"]
+repository = "https://github.com/craton-co/pg-bolt"
+homepage = "https://github.com/craton-co/pg-bolt"
+readme = "README.md"
+keywords = ["postgresql", "postgres", "gpu", "cuda", "sql"]
+categories = ["database"]
+build = "build.rs"
+exclude = [
+    "target/*",
+    ".idea/*",
+    ".github/*",
+    "docker/*",
+    "charts/*",
+    "packaging/*",
+    "docs/internal/*",
+    "PG_BOLT_PLAN_AND_CODE.md",
+]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["cuda"]
+cuda = ["craton-bolt/cudarc", "craton-bolt/storage"]
+cuda-stub = ["craton-bolt/cuda-stub", "craton-bolt/storage"]
+pgrx = ["dep:pgrx"]
+pg15 = ["pgrx", "pgrx/pg15", "pgrx-tests?/pg15"]
+pg16 = ["pgrx", "pgrx/pg16", "pgrx-tests?/pg16"]
+pg17 = ["pgrx", "pgrx/pg17", "pgrx-tests?/pg17"]
+pg18 = ["pgrx", "pgrx/pg18", "pgrx-tests?/pg18"]
+pg_test = ["pgrx", "dep:pgrx-tests"]
+
+[dependencies]
+craton-bolt = { path = "../bolt", version = "0.12.0", default-features = false }
+arrow = "53"
+arrow-array = "53"
+arrow-buffer = "53"
+arrow-cast = "53"
+arrow-ipc = "53"
+arrow-schema = "53"
+arrow-select = "53"
+sqlparser = { version = "0.52", features = ["visitor"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1"
+parking_lot = "0.12"
+log = "0.4"
+pgrx = { version = "0.19", optional = true }
+# Cargo forbids `optional = true` in `[dev-dependencies]`; keep optional here so
+# pure-Rust `--features cuda-stub` tests never pull pgrx/pg_config unless `pg_test` is enabled.
+pgrx-tests = { version = "0.19", optional = true }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "unwind"
+
+[profile.test]
+debug = "line-tables-only"
