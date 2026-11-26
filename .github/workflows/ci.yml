@@ -1,0 +1,176 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust-stub-suite:
+    name: Pure-Rust cuda-stub (${{ matrix.os }}, ${{ matrix.toolchain }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        toolchain: ["1.85.0", stable]
+    steps:
+      - name: Checkout pg_bolt
+        uses: actions/checkout@v4
+        with:
+          path: pg_bolt
+
+      - name: Checkout sibling craton-bolt
+        uses: actions/checkout@v4
+        with:
+          repository: craton-co/craton-bolt
+          path: bolt
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy, rustfmt
+
+      - name: Cache Cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            pg_bolt/target
+          key: ${{ runner.os }}-${{ matrix.toolchain }}-stub-${{ hashFiles('pg_bolt/Cargo.toml', 'bolt/Cargo.toml') }}
+
+      - name: Check formatting
+        if: matrix.os == 'ubuntu-latest' && matrix.toolchain == 'stable'
+        working-directory: pg_bolt
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy (cuda-stub, all targets)
+        working-directory: pg_bolt
+        run: cargo clippy --no-default-features --features cuda-stub --all-targets -- -D warnings
+
+      - name: Run pure-Rust unit and integration tests (cuda-stub)
+        working-directory: pg_bolt
+        run: cargo test --no-default-features --features cuda-stub
+
+  pgrx-pg-matrix:
+    name: pgrx PostgreSQL ${{ matrix.pg }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: [pg15, pg16, pg17, pg18]
+    steps:
+      - name: Checkout pg_bolt
+        uses: actions/checkout@v4
+        with:
+          path: pg_bolt
+
+      - name: Checkout sibling craton-bolt
+        uses: actions/checkout@v4
+        with:
+          repository: craton-co/craton-bolt
+          path: bolt
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Install PostgreSQL build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang libclang-dev pkg-config libssl-dev \
+            libreadline-dev zlib1g-dev flex bison
+
+      - name: Cache pgrx and Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.pgrx
+            pg_bolt/target
+          key: ubuntu-${{ matrix.pg }}-pgrx-0.19.4-${{ hashFiles('pg_bolt/Cargo.toml', 'bolt/Cargo.toml') }}
+
+      - name: Install and initialize cargo-pgrx
+        run: |
+          if ! command -v cargo-pgrx >/dev/null 2>&1; then
+            cargo install cargo-pgrx --version 0.19.4 --locked
+          fi
+          cargo pgrx init --${{ matrix.pg }} download
+
+      - name: Clippy with pgrx (${{ matrix.pg }}, cuda-stub)
+        working-directory: pg_bolt
+        run: cargo clippy --no-default-features --features "${{ matrix.pg }} cuda-stub" --all-targets -- -D warnings
+
+      - name: Run cargo pgrx test (${{ matrix.pg }}, cuda-stub)
+        working-directory: pg_bolt
+        run: cargo pgrx test ${{ matrix.pg }} --no-default-features --features "${{ matrix.pg }} cuda-stub pg_test"
+
+  docs-and-license:
+    name: Docs & cargo-deny audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pg_bolt
+        uses: actions/checkout@v4
+        with:
+          path: pg_bolt
+
+      - name: Checkout sibling craton-bolt
+        uses: actions/checkout@v4
+        with:
+          repository: craton-co/craton-bolt
+          path: bolt
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Build rustdoc with -D warnings
+        working-directory: pg_bolt
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --no-deps --no-default-features --features cuda-stub
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Run cargo-deny checks (licenses, bans, advisories, sources)
+        working-directory: pg_bolt
+        run: cargo deny check
+
+  gpu-cuda-smoke:
+    name: NVIDIA CUDA PG17 smoke (self-hosted GPU)
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'gpu')
+    runs-on: [self-hosted, linux, x64, gpu]
+    steps:
+      - name: Checkout pg_bolt
+        uses: actions/checkout@v4
+        with:
+          path: pg_bolt
+
+      - name: Checkout sibling craton-bolt
+        uses: actions/checkout@v4
+        with:
+          repository: craton-co/craton-bolt
+          path: bolt
+
+      - name: Run full CUDA Rust integration suite
+        working-directory: pg_bolt
+        run: cargo test --features cuda
+
+      - name: Run cargo pgrx test pg17 with CUDA
+        working-directory: pg_bolt
+        run: cargo pgrx test pg17 --no-default-features --features "pg17 cuda pg_test"
