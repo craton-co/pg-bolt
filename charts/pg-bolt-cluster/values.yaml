@@ -1,0 +1,51 @@
+# Default values for pg-bolt-cluster.
+
+# Deployment mode:
+# - "standalone": Deploys a PostgreSQL StatefulSet + Service directly
+# - "cnpg": Deploys a CloudNativePG Cluster CRD (requires CloudNativePG operator)
+operator:
+  mode: standalone
+  instances: 1
+
+image:
+  repository: ghcr.io/craton-co/pg-bolt
+  tag: pg17-gpu
+  pullPolicy: IfNotPresent
+
+gpu:
+  enabled: false
+  count: 1
+  runtimeClassName: nvidia
+
+auth:
+  postgresPassword: ""
+  existingSecret: ""
+  secretKey: password
+
+postgresql:
+  version: 17
+  sharedPreloadLibraries:
+    - pg_bolt
+  parameters:
+    max_connections: "100"
+    shared_buffers: "256MB"
+
+storage:
+  size: 20Gi
+  storageClassName: ""
+
+service:
+  type: ClusterIP
+  port: 5432
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "4"
+    memory: 8Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Local CI image for pg_bolt (mirrors .github/workflows/ci.yml).
+# Build and run via scripts/ci-local.ps1 (Windows) or scripts/ci-local.sh (Linux/macOS).
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV RUSTUP_HOME=/opt/rust/rustup
+ENV CARGO_HOME=/opt/rust/cargo
+ENV PATH=/opt/rust/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bison \
+    build-essential \
+    ca-certificates \
+    clang \
+    curl \
+    flex \
+    git \
+    libclang-dev \
+    libicu-dev \
+    libreadline-dev \
+    libssl-dev \
+    pkg-config \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust toolchains (MSRV 1.85.0 and stable) + clippy + rustfmt
+RUN mkdir -p /opt/rust/rustup /opt/rust/cargo \
+    && curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
+        | sh -s -- -y --no-modify-path --default-toolchain stable --profile minimal \
+    && rustup toolchain install 1.85.0 --profile minimal \
+    && rustup component add --toolchain stable clippy rustfmt \
+    && rustup component add --toolchain 1.85.0 clippy rustfmt \
+    && cargo install cargo-pgrx --version 0.19.4 --locked \
+    && cargo install cargo-deny --locked \
+    && chmod -R a+rX /opt/rust
+
+# Prepare cache directories owned by the non-root `ubuntu` user (PostgreSQL refuses to run as root)
+RUN mkdir -p /cache/cargo /cache/pgrx /cache/target /workspace \
+    && chown -R ubuntu:ubuntu /cache /workspace
+
+COPY docker/ci-entrypoint.sh /usr/local/bin/ci-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/ci-entrypoint.sh && chmod +x /usr/local/bin/ci-entrypoint.sh
+
+USER ubuntu
+WORKDIR /workspace/pg_bolt
+
+ENV USER=ubuntu
+ENV CARGO_HOME=/cache/cargo
+ENV PGRX_HOME=/cache/pgrx
+ENV CARGO_TARGET_DIR=/cache/target
+ENV CARGO_TERM_COLOR=always
+
+ENTRYPOINT ["/usr/local/bin/ci-entrypoint.sh"]

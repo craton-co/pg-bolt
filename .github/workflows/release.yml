@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Release (PGXN + crates.io + GitHub Release)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Create Release & PGXN Archive
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build PGXN zip archive
+        run: |
+          VER=$(grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2)
+          mkdir -p dist
+          # Strip local ../bolt path in a clean copy for standalone PGXN & crates.io builds
+          git archive --format=tar --prefix="pg_bolt-${VER}/" HEAD | tar -x -C /tmp
+          sed -i 's|path = "../bolt", ||g' "/tmp/pg_bolt-${VER}/Cargo.toml"
+          (cd /tmp && zip -r "${GITHUB_WORKSPACE}/dist/pg_bolt-${VER}.zip" "pg_bolt-${VER}")
+          echo "VERSION=${VER}" >> "$GITHUB_ENV"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/pg_bolt-${{ env.VERSION }}.zip
+          generate_release_notes: true
+
+      - name: Publish to crates.io (when CARGO_REGISTRY_TOKEN is configured)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
+            echo "CARGO_REGISTRY_TOKEN is not set; skipping crates.io publish."
+            exit 0
+          fi
+          if [ ! -d ../bolt ]; then
+            sed -i 's|path = "../bolt", ||g' Cargo.toml
+          fi
+          cargo publish --no-verify --allow-dirty

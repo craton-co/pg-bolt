@@ -1,0 +1,5 @@
+comment = 'pg_bolt: GPU-accelerated analytical SQL extension powered by craton-bolt'
+default_version = '0.1.1'
+module_pathname = '$libdir/pg_bolt'
+relocatable = false
+superuser = true

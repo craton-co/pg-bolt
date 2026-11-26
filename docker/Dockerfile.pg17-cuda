@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Build from the parent workspace root containing both `bolt/` and `pg_bolt/`:
+#   docker build -f pg_bolt/docker/Dockerfile.pg17-gpu -t craton/pg_bolt:pg17-gpu .
+#
+# Run with NVIDIA Container Toolkit (`--gpus all`):
+#   docker run --rm -it --gpus all -e POSTGRES_PASSWORD=postgres -p 5432:5432 craton/pg_bolt:pg17-gpu
+
+FROM nvidia/cuda:12.6.3-devel-ubuntu24.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CUDA_HOME=/usr/local/cuda
+ENV CUDA_PATH=/usr/local/cuda
+ENV PATH=/root/.cargo/bin:/usr/lib/postgresql/17/bin:${CUDA_HOME}/bin:${PATH}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    clang \
+    curl \
+    git \
+    gnupg \
+    libclang-dev \
+    libssl-dev \
+    lsb-release \
+    pkg-config \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-17 \
+    postgresql-server-dev-17 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
+    | sh -s -- -y --default-toolchain stable --profile minimal \
+    && cargo install cargo-pgrx --version 0.19.4 --locked \
+    && cargo pgrx init --pg17 /usr/lib/postgresql/17/bin/pg_config
+
+WORKDIR /workspace
+COPY bolt /workspace/bolt
+COPY pg_bolt /workspace/pg_bolt
+
+WORKDIR /workspace/pg_bolt
+RUN cargo pgrx install \
+    --release \
+    --pg-config /usr/lib/postgresql/17/bin/pg_config \
+    --no-default-features \
+    --features "pg17 cuda"
+
+FROM nvidia/cuda:12.6.3-runtime-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+ENV CUDA_HOME=/usr/local/cuda
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64
+ENV PGDATA=/var/lib/postgresql/17/main
+ENV PATH=/usr/lib/postgresql/17/bin:${CUDA_HOME}/bin:${PATH}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-17 \
+    cuda-nvrtc-12-6 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/lib/postgresql/17/lib/pg_bolt.so /usr/lib/postgresql/17/lib/pg_bolt.so
+COPY --from=builder /usr/share/postgresql/17/extension/pg_bolt* /usr/share/postgresql/17/extension/
+
+RUN sed -i "s/^#*shared_preload_libraries.*/shared_preload_libraries = 'pg_bolt'/" /etc/postgresql/17/main/postgresql.conf \
+    && echo "host all all 0.0.0.0/0 scram-sha-256" >> /etc/postgresql/17/main/pg_hba.conf \
+    && sed -i "s/^#*listen_addresses.*/listen_addresses = '*'/" /etc/postgresql/17/main/postgresql.conf
+
+USER postgres
+EXPOSE 5432
+
+CMD ["postgres", "-D", "/var/lib/postgresql/17/main", "-c", "config_file=/etc/postgresql/17/main/postgresql.conf"]
