@@ -4,7 +4,7 @@
 
 ## Policy on Reported Results
 
-`pg_bolt` is currently in pre-release (`0.1.1`). **This repository does not publish synthetic or extrapolated speedup numbers.** All benchmark figures published here come strictly from reproducible, executed runs on verified hardware with full PostgreSQL and CUDA metadata recorded.
+`pg_bolt` is currently in pre-release (`0.2.0`). **This repository does not publish synthetic or extrapolated speedup numbers.** All benchmark figures published here come strictly from reproducible, executed runs on verified hardware with full PostgreSQL and CUDA metadata recorded.
 
 ## Reference Environments & Validation Status
 

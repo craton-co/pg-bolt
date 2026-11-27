@@ -2,7 +2,7 @@
 
 # SQL API Reference
 
-All SQL objects are installed into the `"bolt"` schema ([`sql/pg_bolt--0.1.1.sql`](../sql/pg_bolt--0.1.1.sql)). Loading the extension requires superuser privileges (`superuser = true` in [`pg_bolt.control`](../pg_bolt.control)).
+All SQL objects are installed into the `"bolt"` schema ([`sql/pg_bolt--0.2.0.sql`](../sql/pg_bolt--0.2.0.sql)). Loading the extension requires superuser privileges (`superuser = true` in [`pg_bolt.control`](../pg_bolt.control)).
 
 ## Cache & Lifecycle Functions
 

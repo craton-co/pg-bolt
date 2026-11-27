@@ -9,7 +9,7 @@ Checklist for cutting a `pg_bolt` release.
 Ensure the release version (`X.Y.Z`) matches across:
 - [`Cargo.toml`](Cargo.toml) (`package.version` and `craton-bolt` dependency pin)
 - [`pg_bolt.control`](pg_bolt.control) (`default_version`)
-- Upgrade/install SQL script under [`sql/`](sql/) (for example `sql/pg_bolt--0.1.1.sql` or migration scripts)
+- Upgrade/install SQL script under [`sql/`](sql/) (for example `sql/pg_bolt--0.2.0.sql` or migration scripts)
 - [`CHANGELOG.md`](CHANGELOG.md) and [`NOTICE`](NOTICE)
 
 ## 2. Pre-Release Validation

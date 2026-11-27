@@ -2,7 +2,7 @@
   "name": "pg_bolt",
   "abstract": "GPU-accelerated analytical SQL extension powered by craton-bolt",
   "description": "pg_bolt caches PostgreSQL relations as Apache Arrow RecordBatch snapshots in NVIDIA GPU VRAM, analyzes incoming SQL queries for GPU or Hybrid execution eligibility, and exposes both bolt.* SQL entry points and a PostgreSQL CustomScan planner hook.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "maintainer": [
     "Craton Software Company <opensource@craton.com.ar>"
   ],
@@ -10,9 +10,9 @@
   "provides": {
     "pg_bolt": {
       "abstract": "GPU-accelerated analytical SQL extension powered by craton-bolt",
-      "file": "sql/pg_bolt--0.1.1.sql",
+      "file": "sql/pg_bolt--0.2.0.sql",
       "docfile": "README.md",
-      "version": "0.1.1"
+      "version": "0.2.0"
     }
   },
   "prereqs": {

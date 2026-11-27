@@ -32,3 +32,6 @@ uninstall:
 
 clean:
 	$(CARGO) clean
+
+ci:
+	bash scripts/ci-local.sh
