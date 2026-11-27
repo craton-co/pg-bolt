@@ -44,14 +44,14 @@ All measurements below were run on an **NVIDIA L40S (46,068 MiB VRAM)** host wit
 
 ## 3. `compute_benchmarks` — Resident-VRAM / In-Memory Compute, 10 M rows
 
-| Kernel | Polars 0.42 | DuckDB 1.2 | Craton Bolt (L40S) | PG (1-core) | PG (4-core) |
-| :--- | ---: | ---: | ---: | ---: | ---: |
-| `c1_fma_sum` | 132.98 ms | 7.72 ms | **867.68 µs** | 628.39 ms | 169.79 ms |
-| `c2_poly4_sum` | 305.04 ms | 9.60 ms | **426.42 µs** | 815.39 ms | 194.48 ms |
-| `c3_sphere_filter_sum` | 237.64 ms | 15.38 ms | **1.60 ms** | 770.43 ms | 190.84 ms |
-| `c4_weighted_sum` | 361.58 ms | 14.94 ms | **875.93 µs** | 746.64 ms | 184.99 ms |
-| `c5_filtered_fma_sum` | 134.37 ms | 14.39 ms | **1.57 ms** | 770.36 ms | 168.02 ms |
-| `c6_poly12_sum` | 1.225 s | 42.08 ms | **454.33 µs** | 1248.28 ms | 336.60 ms |
+| Kernel                 | Polars 0.42 | DuckDB 1.2 | Craton Bolt (L40S) | PG (1-core) | PG (4-core) |
+|:-----------------------|------------:|-----------:|-------------------:|------------:|------------:|
+| `c1_fma_sum`           |   132.98 ms |    7.72 ms |      **867.68 µs** |   628.39 ms |   169.79 ms |
+| `c2_poly4_sum`         |   305.04 ms |    9.60 ms |      **426.42 µs** |   815.39 ms |   194.48 ms |
+| `c3_sphere_filter_sum` |   237.64 ms |   15.38 ms |        **1.60 ms** |   770.43 ms |   190.84 ms |
+| `c4_weighted_sum`      |   361.58 ms |   14.94 ms |      **875.93 µs** |   746.64 ms |   184.99 ms |
+| `c5_filtered_fma_sum`  |   134.37 ms |   14.39 ms |        **1.57 ms** |   770.36 ms |   168.02 ms |
+| `c6_poly12_sum`        |     1.225 s |   42.08 ms |      **454.33 µs** |  1248.28 ms |   336.60 ms |
 
 ---
 
