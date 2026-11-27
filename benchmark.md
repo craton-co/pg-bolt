@@ -32,13 +32,13 @@ All measurements below were run on an **NVIDIA L40S (46,068 MiB VRAM)** host wit
 
 ## 2. `olap_benchmarks` — h2o.ai GROUP BY, 10 M rows
 
-| Query | DuckDB 1.2 | Polars 0.42 | Craton Bolt (L40S) | PG (1-core) | PG (4-core) |
-| :--- | ---: | ---: | ---: | ---: | ---: |
-| `q1_low_card_sum` | 5.48 ms | 16.53 ms | **3.79 ms** | 1561.46 ms | 383.76 ms |
-| `q2_med_card_2sum` | **19.26 ms** | 46.63 ms | 117.72 ms | 1437.19 ms | 387.74 ms |
-| `q3_two_key_sum` | 122.27 ms | 229.31 ms | **110.94 ms** | 3275.61 ms | 1463.08 ms |
-| `q4_low_card_3avg` | **9.74 ms** | 51.22 ms | 24.69 ms | 1707.03 ms | 405.38 ms |
-| `q5_high_card_sum` | 170.35 ms | 253.49 ms | **156.16 ms** | 7915.51 ms | 2709.39 ms |
+| Query              |   DuckDB 1.2 | Polars 0.42 | Craton Bolt (L40S) | PG (1-core) | PG (4-core) |
+|:-------------------|-------------:|------------:|-------------------:|------------:|------------:|
+| `q1_low_card_sum`  |      5.48 ms |    16.53 ms |        **3.79 ms** |  1561.46 ms |   383.76 ms |
+| `q2_med_card_2sum` | **19.26 ms** |    46.63 ms |          117.72 ms |  1437.19 ms |   387.74 ms |
+| `q3_two_key_sum`   |    122.27 ms |   229.31 ms |      **110.94 ms** |  3275.61 ms |  1463.08 ms |
+| `q4_low_card_3avg` |  **9.74 ms** |    51.22 ms |           24.69 ms |  1707.03 ms |   405.38 ms |
+| `q5_high_card_sum` |    170.35 ms |   253.49 ms |      **156.16 ms** |  7915.51 ms |  2709.39 ms |
 
 ---
 
