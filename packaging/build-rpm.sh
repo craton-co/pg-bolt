@@ -11,12 +11,13 @@ export CUDA_HOME=/usr/local/cuda
 export PATH="/root/.cargo/bin:/usr/pgsql-${PG_MAJOR}/bin:${CUDA_HOME}/bin:${PATH}"
 
 dnf install -y -q epel-release
-dnf install -y -q \
+crb enable 2>/dev/null || dnf config-manager --set-enabled crb 2>/dev/null || true
+dnf install -y -q --allowerasing \
     gcc gcc-c++ clang clang-devel openssl-devel pkgconfig \
     rpm-build git curl make \
     "https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
 dnf -qy module disable postgresql || true
-dnf install -y -q "postgresql${PG_MAJOR}-server" "postgresql${PG_MAJOR}-devel"
+dnf install -y -q --allowerasing "postgresql${PG_MAJOR}-server" "postgresql${PG_MAJOR}-devel"
 
 if ! command -v cargo >/dev/null 2>&1; then
     curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
