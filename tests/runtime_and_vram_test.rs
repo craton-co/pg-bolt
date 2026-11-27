@@ -377,6 +377,69 @@ fn gpu_ptx_jit_executes_sales_query_delta_and_timeout() {
     assert!((totals2.value(1) - 300.0).abs() < 1e-6);
     assert_eq!(regions2.value(2), 40);
     assert!((totals2.value(2) - 100.0).abs() < 1e-6);
+
+    // Multi-column GROUP BY with pre-aggregation (`q2` shape: WHERE + computed SUM + AVG + COUNT(*)).
+    let q2_sql = "SELECT region_id, tax, \
+                         SUM(price * (1.0 - discount / 100.0)) AS gross_rev, \
+                         AVG(price) AS avg_price, \
+                         COUNT(*) AS order_lines \
+                  FROM sales \
+                  WHERE region_id < 50 \
+                  GROUP BY region_id, tax \
+                  ORDER BY region_id, tax";
+    let q2 = rt
+        .execute_sql(q2_sql)
+        .expect("GPU execution of multi-column GROUP BY with pre");
+    // Surviving rows (region_id < 50):
+    //   (10, 0.10): (100*(1 - 0.05)) + (50*(1 - 0.02)) = 95 + 49 = 144.0, avg=75.0, count=2
+    //   (10, 0.20): 200*(1 - 0.10) = 180.0, avg=200.0, count=1
+    //   (25, 0.05): 300*(1 - 0.15) = 255.0, avg=300.0, count=1
+    //   (40, 0.25): 80*(1 - 0.0)   = 80.0,  avg=80.0,  count=1
+    assert_eq!(q2.batch.num_rows(), 4);
+    let q2_r = q2
+        .batch
+        .column(0)
+        .as_any()
+        .downcast_ref::<Int32Array>()
+        .unwrap();
+    let q2_t = q2
+        .batch
+        .column(1)
+        .as_any()
+        .downcast_ref::<Float64Array>()
+        .unwrap();
+    let q2_rev = q2
+        .batch
+        .column(2)
+        .as_any()
+        .downcast_ref::<Float64Array>()
+        .unwrap();
+    let q2_avg = q2
+        .batch
+        .column(3)
+        .as_any()
+        .downcast_ref::<Float64Array>()
+        .unwrap();
+    let q2_cnt = q2
+        .batch
+        .column(4)
+        .as_any()
+        .downcast_ref::<arrow_array::Int64Array>()
+        .unwrap();
+    assert_eq!(q2_r.values().as_ref(), &[10, 10, 25, 40]);
+    assert!((q2_t.value(0) - 0.10).abs() < 1e-9);
+    assert!((q2_t.value(1) - 0.20).abs() < 1e-9);
+    assert!((q2_t.value(2) - 0.05).abs() < 1e-9);
+    assert!((q2_t.value(3) - 0.25).abs() < 1e-9);
+    assert!((q2_rev.value(0) - 144.0).abs() < 1e-6);
+    assert!((q2_rev.value(1) - 180.0).abs() < 1e-6);
+    assert!((q2_rev.value(2) - 255.0).abs() < 1e-6);
+    assert!((q2_rev.value(3) - 80.0).abs() < 1e-6);
+    assert!((q2_avg.value(0) - 75.0).abs() < 1e-6);
+    assert!((q2_avg.value(1) - 200.0).abs() < 1e-6);
+    assert!((q2_avg.value(2) - 300.0).abs() < 1e-6);
+    assert!((q2_avg.value(3) - 80.0).abs() < 1e-6);
+    assert_eq!(q2_cnt.values().as_ref(), &[2, 1, 1, 1]);
 }
 
 #[test]

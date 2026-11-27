@@ -208,8 +208,8 @@ fn planner_rejects_dml_locking_volatiles_uncached_small_dirty_and_disallowed_hyb
     assert_eq!(hybrid_rejected.tier, Some(ExecutionTier::Hybrid));
     assert!(hybrid_rejected.reason.contains("allow_hybrid_fallback"));
 
-    // Multi-column GROUP BY with pre-aggregation (e.g. q2_region_category_rev) must be
-    // rejected at plan time so CustomScan silently falls back to PostgreSQL CPU.
+    // Multi-column GROUP BY with pre-aggregation (e.g. q2_region_category_rev) is
+    // supported on Bolt GPU and eligible for CustomScan offload.
     let q2_multi_col = analyze_sql_eligibility(
         "SELECT region_id, tax, SUM(price * (1.0 - discount / 100.0)) AS gross_rev, \
          AVG(price) AS avg_price, COUNT(*) AS order_lines \
@@ -220,12 +220,16 @@ fn planner_rejects_dml_locking_volatiles_uncached_small_dirty_and_disallowed_hyb
         &cfg,
     )
     .unwrap();
-    eprintln!(
-        "[q2 fallback proof] eligible={} reason={}",
-        q2_multi_col.eligible, q2_multi_col.reason
+    assert!(
+        q2_multi_col.eligible,
+        "multi-column GROUP BY with pre-aggregation should be eligible: {}",
+        q2_multi_col.reason
     );
-    assert!(!q2_multi_col.eligible);
-    assert!(q2_multi_col.reason.contains("multi-column GROUP BY"));
+    assert!(matches!(
+        q2_multi_col.tier,
+        Some(ExecutionTier::Gpu | ExecutionTier::Hybrid)
+    ));
+    assert!(q2_multi_col.estimated_bolt_cost < q2_multi_col.estimated_pg_cost);
 }
 
 #[test]

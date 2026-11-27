@@ -649,7 +649,7 @@ dependencies = [
 
 [[package]]
 name = "craton-bolt"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -2655,7 +2655,7 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "unescape"
-version = "0.1.1"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccb97dac3243214f8d8507998906ca3e2e0b900bf9bf4870477f125b82e68f6e"
 

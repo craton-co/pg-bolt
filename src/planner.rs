@@ -1752,22 +1752,6 @@ fn arrow_schema_to_bolt(schema: &SchemaRef) -> PgBoltResult<BoltSchema> {
     Ok(BoltSchema::new(fields))
 }
 
-/// Returns `true` if `plan` contains an `Aggregate` with a pre-kernel (`pre.is_some()`)
-/// and more than one `GROUP BY` key, which `craton-bolt` rejects at execution time.
-fn has_multi_col_groupby_with_pre(plan: &craton_bolt::plan::PhysicalPlan) -> bool {
-    matches!(
-        plan,
-        craton_bolt::plan::PhysicalPlan::Aggregate {
-            pre: Some(_),
-            aggregate,
-            ..
-        } if aggregate.group_by.len() > 1
-    ) || plan
-        .children()
-        .into_iter()
-        .any(has_multi_col_groupby_with_pre)
-}
-
 /// Evaluates whether `sql` is safe, cached, supported on GPU/Hybrid, and cost-effective to offload.
 pub fn analyze_sql_eligibility(
     sql: &str,
@@ -2042,16 +2026,6 @@ pub fn analyze_sql_eligibility(
             ));
         }
     };
-
-    if has_multi_col_groupby_with_pre(&physical) {
-        return Ok(PlanEligibility::ineligible(
-            "multi-column GROUP BY with pre-aggregation is not yet supported on Bolt GPU; keeping query on PostgreSQL CPU",
-            None,
-            0.0,
-            0.0,
-            inspection.referenced_tables,
-        ));
-    }
 
     let tier = physical.planned_execution_tier();
     let estimated_pg_cost = estimate_pg_cpu_cost(
@@ -3015,8 +2989,7 @@ mod tests {
         assert_eq!(hybrid_rejected.tier, Some(ExecutionTier::Hybrid));
         assert!(hybrid_rejected.reason.contains("allow_hybrid_fallback"));
 
-        // Multi-column GROUP BY with pre-aggregation is rejected at plan time so CustomScan
-        // silently falls back to PostgreSQL CPU instead of failing at GPU execution time.
+        // Multi-column GROUP BY with pre-aggregation is supported on Bolt GPU and eligible.
         let multi_col_pre = analyze_sql_eligibility(
             "SELECT region_id, tax, SUM(price * tax) AS rev FROM public.sales GROUP BY region_id, tax ORDER BY region_id, tax",
             &metas,
@@ -3024,8 +2997,15 @@ mod tests {
             &cfg,
         )
         .unwrap();
-        assert!(!multi_col_pre.eligible);
-        assert!(multi_col_pre.reason.contains("multi-column GROUP BY"));
+        assert!(
+            multi_col_pre.eligible,
+            "multi-column GROUP BY with pre should be eligible: {}",
+            multi_col_pre.reason
+        );
+        assert!(matches!(
+            multi_col_pre.tier,
+            Some(ExecutionTier::Gpu | ExecutionTier::Hybrid)
+        ));
 
         // Wrong schema qualifier must not silently alias `public.sales`.
         let wrong_schema = analyze_sql_eligibility(
