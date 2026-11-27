@@ -59,11 +59,11 @@ All measurements below were run on an **NVIDIA L40S (46,068 MiB VRAM)** host wit
 
 *(PostgreSQL measured via server-side `EXPLAIN (ANALYZE, FORMAT JSON)` execution time)*
 
-| Query | Polars (CPU MT) | Craton Bolt E2E (L40S) | CPU Ref (1T) | PG (1-core) | PG (4-core) |
-| :--- | ---: | ---: | ---: | ---: | ---: |
-| `proj` | **3.12 µs** | 625.55 ms | — | 4671.11 ms | 4701.35 ms |
-| `arith` | 5.336 s | 595.12 ms | **450.51 ms** | 7116.68 ms | 7162.24 ms |
-| `filtered` | 589.10 ms | **156.52 ms** | — | 2862.69 ms | 2955.93 ms |
+| Query      | Polars (CPU MT) | Craton Bolt E2E (L40S) |  CPU Ref (1T) | PG (1-core) | PG (4-core) |
+|:-----------|----------------:|-----------------------:|--------------:|------------:|------------:|
+| `proj`     |     **3.12 µs** |              625.55 ms |             — |  4671.11 ms |  4701.35 ms |
+| `arith`    |         5.336 s |              595.12 ms | **450.51 ms** |  7116.68 ms |  7162.24 ms |
+| `filtered` |       589.10 ms |          **156.52 ms** |             — |  2862.69 ms |  2955.93 ms |
 
 ---
 
