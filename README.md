@@ -8,7 +8,7 @@ PostgreSQL extension (`pgrx` 0.19) for GPU-accelerated analytical SQL via [`crat
 
 ## Status & Support Matrix
 
-- **Extension version**: `0.1.1` (Rust edition `2021`, MSRV `1.85`)
+- **Extension version**: `0.2.0` (Rust edition `2021`, MSRV `1.85`)
 - **PostgreSQL targets**: PostgreSQL `15`, `16`, `17`, `18` (`pg15`–`pg18` Cargo features via `pgrx = "0.19"`)
 - **CUDA requirement**: NVIDIA CUDA Toolkit `>= 12.0` (NVRTC runtime PTX JIT + driver API) for `cuda` builds; `--no-default-features --features cuda-stub` for GPU-less CI/host testing
 - **Validation status**:

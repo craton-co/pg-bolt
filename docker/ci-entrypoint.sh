@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 set -euo pipefail
 
-# Ensure USER is set for pgrx-tests
+# Ensure USER and HOME are set for pgrx-tests
 export USER="${USER:-$(id -un)}"
+export HOME="${HOME:-/home/${USER}}"
 
 # Ensure git doesn't complain about mounted workspace ownership
 git config --global --add safe.directory '*' >/dev/null 2>&1 || true
@@ -58,7 +59,7 @@ fi
 if [ "${SKIP_PGRX}" != "1" ]; then
   for pg in ${PG_VERSIONS}; do
     step "6. pgrx init & checks (${pg}, cuda-stub)"
-    if [ ! -f "${PGRX_HOME}/config.toml" ] || ! grep -q "^${pg} " "${PGRX_HOME}/config.toml" 2>/dev/null; then
+    if [ ! -f "${PGRX_HOME}/config.toml" ] || ! grep -q -E "(^|[[:space:]])${pg}[[:space:]]*=" "${PGRX_HOME}/config.toml" 2>/dev/null; then
       cargo pgrx init "--${pg}" download
     fi
     cargo +stable clippy --no-default-features --features "${pg} cuda-stub" --all-targets -- -D warnings

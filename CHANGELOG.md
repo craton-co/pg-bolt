@@ -4,6 +4,13 @@
 
 All notable changes to `pg_bolt` are documented in this file.
 
+## [0.2.0] - 2026-11-27
+
+### Added
+- **Local Docker CI script**: [`scripts/ci-local.ps1`](scripts/ci-local.ps1), [`scripts/ci-local.sh`](scripts/ci-local.sh), and root [`run-ci.sh`](run-ci.sh) / [`run-ci.ps1`](run-ci.ps1) reproducing all `.github/workflows/ci.yml` jobs locally in isolated Linux containers.
+- **Multi-column GROUP BY with pre-aggregation**: Bolt GPU offload support for multi-column grouped aggregations.
+- **SQL install & migration scripts**: Updated to `sql/pg_bolt--0.2.0.sql` and `sql/pg_bolt--0.1.0--0.2.0.sql`.
+
 ## [0.1.1] - 2026-11-13 (Full Pre-Release Validation)
 
 ### Added
