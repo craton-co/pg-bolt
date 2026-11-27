@@ -8,23 +8,23 @@ All measurements below were run on an **NVIDIA L40S (46,068 MiB VRAM)** host wit
 
 11-column analytical `sales` table (`order_id`, `customer_id`, `region_id`, `store_id`, `category_id`, `order_day`, `quantity`, `price`, `tax`, `discount`, `shipping_cost`) across **1M**, **10M**, and **100M** rows.
 
-| Scale | Query | PG (1-core) | PG (4-core) | `craton-bolt` | `pg_bolt` IPC |
-| :--- | :--- | ---: | ---: | ---: | ---: |
-| **1M** | `q1_article_region_net` | 108.45 | 108.19 | 31.95 | **17.99** |
-| **1M** | `q2_region_category_rev` | 193.71 | 162.62 | *err¹* | *err¹* |
-| **1M** | `q3_store_profit` | 203.50 | 196.88 | 47.95 | **30.13** |
-| **1M** | `q4_scalar_audit` | 124.60 | 124.61 | 8.62 | **0.25** |
-| **1M** | `q5_customer_ltv` | 646.25 | 583.63 | **75.55** | 83.60 |
-| **10M** | `q1_article_region_net` | 1282.48 | 876.93 | 311.07 | **231.66** |
-| **10M** | `q2_region_category_rev` | 1539.72 | 1396.69 | *err¹* | *err¹* |
-| **10M** | `q3_store_profit` | 1742.83 | 1617.82 | 551.84 | **438.47** |
-| **10M** | `q4_scalar_audit` | 892.86 | 892.17 | 170.96 | **1.85** |
-| **10M** | `q5_customer_ltv` | 3599.07 | 2778.73 | 854.55 | **583.60** |
-| **100M** | `q1_article_region_net` | 9022.60 | 8841.28 | 2947.79 | **2301.30** |
-| **100M** | `q2_region_category_rev` | 11914.19 | 11465.65 | *err¹* | *err¹* |
-| **100M** | `q3_store_profit` | 14432.69 | 13940.92 | 5308.01 | **4304.66** |
-| **100M** | `q4_scalar_audit` | 7928.36 | 7941.01 | 1790.23 | **25.22** |
-| **100M** | `q5_customer_ltv` | 26573.84 | 27534.57 | 7449.47 | **5083.96** |
+| Scale    | Query                    | PG (1-core) | PG (4-core) | `craton-bolt` | `pg_bolt` IPC |
+|:---------|:-------------------------|------------:|------------:|--------------:|--------------:|
+| **1M**   | `q1_article_region_net`  |      108.45 |      108.19 |         31.95 |     **17.99** |
+| **1M**   | `q2_region_category_rev` |      193.71 |      162.62 |        *err¹* |        *err¹* |
+| **1M**   | `q3_store_profit`        |      203.50 |      196.88 |         47.95 |     **30.13** |
+| **1M**   | `q4_scalar_audit`        |      124.60 |      124.61 |          8.62 |      **0.25** |
+| **1M**   | `q5_customer_ltv`        |      646.25 |      583.63 |     **75.55** |         83.60 |
+| **10M**  | `q1_article_region_net`  |     1282.48 |      876.93 |        311.07 |    **231.66** |
+| **10M**  | `q2_region_category_rev` |     1539.72 |     1396.69 |        *err¹* |        *err¹* |
+| **10M**  | `q3_store_profit`        |     1742.83 |     1617.82 |        551.84 |    **438.47** |
+| **10M**  | `q4_scalar_audit`        |      892.86 |      892.17 |        170.96 |      **1.85** |
+| **10M**  | `q5_customer_ltv`        |     3599.07 |     2778.73 |        854.55 |    **583.60** |
+| **100M** | `q1_article_region_net`  |     9022.60 |     8841.28 |       2947.79 |   **2301.30** |
+| **100M** | `q2_region_category_rev` |    11914.19 |    11465.65 |        *err¹* |        *err¹* |
+| **100M** | `q3_store_profit`        |    14432.69 |    13940.92 |       5308.01 |   **4304.66** |
+| **100M** | `q4_scalar_audit`        |     7928.36 |     7941.01 |       1790.23 |     **25.22** |
+| **100M** | `q5_customer_ltv`        |    26573.84 |    27534.57 |       7449.47 |   **5083.96** |
 
 *¹ `craton-bolt` / `pg_bolt`: `agg pre+groupby: multi-column GROUP BY not yet supported`.*
 
